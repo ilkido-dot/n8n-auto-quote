@@ -1,0 +1,324 @@
+{
+  "name": "Inquiry Auto-Quote (Demo Form)",
+  "nodes": [
+    {
+      "id": "2a13dca0-38dd-43f0-a30d-0b9d3daacc09",
+      "name": "Inquiry Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "formTitle": "FernzLand 詢價信自動報價 Demo",
+        "formDescription": "貼上一封英文或中英混合的詢價信，系統會抽出品項與數量並查價。資訊不完整或查不到品項時，會改成轉人工確認。（價格為示意值）",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "詢價信內容",
+              "fieldType": "textarea",
+              "requiredField": true,
+              "placeholder": "Hi, we'd like a quote for 20 pcs of P. OMG, medium size..."
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c2e10c92-5f22-4385-b0a3-9055e98f3e84",
+      "name": "Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// 表單送出的內容 → LLM 用的 email 欄位。限制長度，避免公開表單被貼入超長文字。\nconst text = String($input.first().json['詢價信內容'] ?? '').slice(0, 3000);\nreturn [{ json: { email: text } }];"
+      }
+    },
+    {
+      "id": "1b9b7b58-a452-427a-bcb0-dc3a30418d7a",
+      "name": "Basic LLM Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=請從以下客戶來信中抽出詢價資訊。\n\n規則：\n1. 只抽取「這封信本身」要詢價或下單的品項。以「>」開頭的引用舊信不算。這封信沒有新的詢價時，是新詢價填 false、品項填 []。\n2. 客戶明確說「不要」的品項不要列出。\n3. 名稱：照信中寫法，去掉開頭的「P.」或「Platycerium」。拼錯不要自行更正。\n4. 尺寸：small / 小 → S，medium / 中 → M，large / 大 → L。信中沒寫就填 null，不要猜。\n5. 數量：轉成整數（two dozen → 24，15 棵 → 15）。沒寫數量，或寫的是範圍、大約（例如 30-50），一律填 null，不要自己選數字，也不要填 0。\n6. 目的地、其他問題：沒有就填 null。\n\n來信內容：\n{{ $json.email }}\n",
+        "hasOutputParser": true
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "7ef11ade-1f50-4c71-8f82-c89065a07575",
+      "name": "Anthropic Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        360,
+        200
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-haiku-5-5",
+          "mode": "list",
+          "cachedResultName": "Claude Haiku 5.5"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "anthropicApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "id": "0c7ca3d0-1899-4d3e-b5c9-0a9bbb946477",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        600,
+        200
+      ],
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"output\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"是新詢價\": {\n          \"type\": \"boolean\",\n          \"description\": \"true only if THIS email (not quoted older text) asks for a price or places an order\"\n        },\n        \"品項\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"名稱\": { \"type\": \"string\" },\n              \"尺寸\": { \"type\": [\"string\", \"null\"], \"enum\": [\"S\", \"M\", \"L\", null] },\n              \"數量\": { \"type\": [\"integer\", \"null\"], \"minimum\": 1 }\n            },\n            \"required\": [\"名稱\", \"尺寸\", \"數量\"],\n            \"additionalProperties\": false\n          }\n        },\n        \"目的地\": { \"type\": [\"string\", \"null\"] },\n        \"其他問題\": { \"type\": [\"string\", \"null\"] }\n      },\n      \"required\": [\"是新詢價\", \"品項\", \"目的地\", \"其他問題\"],\n      \"additionalProperties\": false\n    }\n  },\n  \"required\": [\"output\"]\n}"
+      }
+    },
+    {
+      "id": "17c9c0f2-a35b-4b2b-b5c0-0588fae34247",
+      "name": "Quote",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Code node: \"Quote\" (Mode: Run Once for All Items)\n// v2 = v1 + failure handling: anything uncertain goes to human review, never a guessed quote.\n// Price list: demo prices (FernzLand US list structure, 58 rows, prices adjusted). Key = \"variety|size\", base price in USD.\nconst 價目表 = {\n  \"bacteria|S\": 24.00,\n  \"bacteria|M\": 30.00,\n  \"bacteria|L\": 60.00,\n  \"nano|S\": 30.00,\n  \"nano|M\": 42.00,\n  \"nano|L\": 66.00,\n  \"jenny #2|S\": 30.00,\n  \"jenny #2|M\": 42.00,\n  \"jenny #2|L\": 66.00,\n  \"omg|S\": 30.00,\n  \"omg|M\": 42.00,\n  \"omg|L\": 66.00,\n  \"jade girl|S\": 24.00,\n  \"jade girl|M\": 30.00,\n  \"jade girl|L\": 60.00,\n  \"spur|S\": 48.00,\n  \"spur|L\": 72.00,\n  \"celso tatsuta|M\": 30.00,\n  \"pedro tatsuta|M\": 30.00,\n  \"ginka|M\": 30.00,\n  \"stella aetemi|M\": 36.00,\n  \"northmonkey|M\": 30.00,\n  \"pearl queen|M\": 36.00,\n  \"bambi|M\": 36.00,\n  \"hakunamatata|M\": 30.00,\n  \"rydeen|M\": 36.00,\n  \"foong si qi|M\": 30.00,\n  \"ss foong|M\": 30.00,\n  \"ridleyi dwarf silver|M\": 30.00,\n  \"ridleyi dwarf silver|L\": 60.00,\n  \"ridleyi monkeyking|M\": 30.00,\n  \"ridleyi monkeyking|L\": 60.00,\n  \"ridleyi nano|M\": 30.00,\n  \"ridleyi nano|L\": 60.00,\n  \"ridleyi parkarang|M\": 30.00,\n  \"ridleyi parkarang|L\": 60.00,\n  \"ridleyi saman|M\": 30.00,\n  \"ridleyi saman|L\": 48.00,\n  \"elsa|M\": 30.00,\n  \"konayuki|M\": 30.00,\n  \"wings of angle|M\": 48.00,\n  \"white gizmo|M\": 30.00,\n  \"banna a|M\": 30.00,\n  \"cupid's wings|M\": 36.00,\n  \"white hawk|M\": 30.00,\n  \"madagascariense|M\": 30.00,\n  \"veitchii auburn river (no face)|S\": 24.00,\n  \"veitchii auburn river (perfect)|S\": 108.00,\n  \"veitchii auburn river chief|S\": 108.00,\n  \"veitchii auburn river flame|S\": 108.00,\n  \"yellow moon dwarf x totoro|S\": 48.00,\n  \"yellow moon dwarf x totoro|M\": 120.00,\n  \"yellow moon dwarf x totoro|L\": 264.00,\n  \"yellow moon dwarf|M\": 36.00,\n  \"wandae var.dwarf&curling|M\": 30.00,\n  \"griffin|M\": 30.00,\n  \"yellow moon|M\": 36.00,\n  \"bogor suddan|M\": 30.00\n};\n\n// 每個品種有哪些尺寸（用來在「只有一種尺寸」時自動補上）\nconst 尺寸表 = {};\nfor (const key of Object.keys(價目表)) {\n  const [品種, 尺寸] = key.split('|');\n  (尺寸表[品種] ??= []).push(尺寸);\n}\n\n// 折扣依「整張訂單總棵數」計算（價目表註記：any mix of varieties & sizes）\nfunction 折扣率(總數) {\n  if (總數 > 100) return null;   // 價目表沒有定義 → 轉人工\n  if (總數 >= 51) return 0.25;\n  if (總數 >= 21) return 0.15;\n  return 0;\n}\n\n// 名稱正規化：小寫、去掉 P. / Platycerium 前綴、壓縮空白\nconst 正規化 = s => String(s ?? '').toLowerCase()\n  .replace(/^(platycerium\\s+|p\\.\\s*)/, '').replace(/\\s+/g, ' ').trim();\n\nreturn $input.all().map(item => {\n  const 資料 = item.json.output;\n  const 原因 = [];\n\n  if (!資料.是新詢價) 原因.push('不是新的詢價');\n  if (資料.品項.length === 0 && 資料.是新詢價) 原因.push('抽不到任何品項');\n\n  const 品項 = 資料.品項.map(x => {\n    const 品種 = 正規化(x.名稱);\n    let 尺寸 = x.尺寸;\n    // 信中沒寫尺寸、但這個品種只有一種尺寸 → 由程式補上（不交給 LLM 猜）\n    if (尺寸 === null && 尺寸表[品種]?.length === 1) 尺寸 = 尺寸表[品種][0];\n\n    const 原價 = 價目表[`${品種}|${尺寸}`] ?? null;\n    if (x.數量 === null) 原因.push(`${x.名稱}：沒有明確數量`);\n    if (原價 === null) {\n      if (!尺寸表[品種]) 原因.push(`${x.名稱}：價目表沒有這個品種`);\n      else if (尺寸 === null) 原因.push(`${x.名稱}：沒寫尺寸（可選 ${尺寸表[品種].join('/')}）`);\n      else 原因.push(`${x.名稱}：沒有 ${尺寸} 尺寸`);\n    }\n    return { 名稱: x.名稱, 尺寸, 數量: x.數量, 原價 };\n  });\n\n  const 總數 = 品項.reduce((s, x) => s + (x.數量 || 0), 0);\n  const 折扣 = 折扣率(總數);\n  if (折扣 === null) 原因.push(`總數 ${總數} 棵超過價目表範圍（>100）`);\n\n  // 只要有任何一個原因，就整封轉人工：不送出部分報價\n  if (原因.length > 0) {\n    return { json: { 路線: 'human_review', 原因, 報價: 品項.map(({原價, ...x}) => x), 總計: null,\n      目的地: 資料.目的地, 其他問題: 資料.其他問題 } };\n  }\n\n  const 報價 = 品項.map(x => {\n    const 單價 = Math.round(x.原價 * (1 - 折扣) * 100) / 100;\n    return { 名稱: x.名稱, 尺寸: x.尺寸, 數量: x.數量, 單價, 小計: Math.round(單價 * x.數量 * 100) / 100 };\n  });\n  const 總計 = Math.round(報價.reduce((s, x) => s + x.小計, 0) * 100) / 100;\n  return { json: { 路線: 'auto_quote', 原因, 報價, 總棵數: 總數, 折扣, 總計,\n    目的地: 資料.目的地, 其他問題: 資料.其他問題 } };\n});\n"
+      }
+    },
+    {
+      "id": "025be317-af7e-436a-ae41-97e262f35dc1",
+      "name": "Format Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1020,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// 把報價結果整理成表單結束頁要顯示的文字（HTML）\nconst r = $input.first().json;\nconst esc = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));\nlet title, message;\nif (r.路線 === 'auto_quote') {\n  const lines = r.報價.map(x =>\n    `${esc(x.名稱)} (${x.尺寸}) × ${x.數量} @ $${x.單價.toFixed(2)} = $${x.小計.toFixed(2)}`);\n  title = '✅ 自動報價（草稿）';\n  message = lines.join('<br>') +\n    `<br><br>總數 ${r.總棵數} 棵，折扣 ${Math.round(r.折扣 * 100)}%<br><b>總計 USD $${r.總計.toFixed(2)}</b>` +\n    (r.目的地 ? `<br>目的地：${esc(r.目的地)}` : '') +\n    '<br><br><small>實際使用時會存成 Gmail 草稿，由人確認後才寄出。價格為示意值。</small>';\n} else {\n  title = '🙋 轉人工確認';\n  message = '這封信有無法自動判斷的地方，不會送出報價：<br><br>' +\n    r.原因.map(x => '• ' + esc(x)).join('<br>') +\n    '<br><br><small>實際使用時會通知負責人處理。</small>';\n}\nreturn [{ json: { ...r, title, message } }];"
+      }
+    },
+    {
+      "id": "ad47e0c4-f93f-4177-8d08-241a2f897986",
+      "name": "Route",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1240,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1ee7aed5-fb57-45f4-b88f-37e4aae658b8",
+              "leftValue": "={{ $json.路線 }}",
+              "rightValue": "auto_quote",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "5cf882a0-8d48-45b3-bff0-fbd1a982c374",
+      "name": "Show Quote",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 1,
+      "position": [
+        1480,
+        -100
+      ],
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "={{ $json.title }}",
+        "completionMessage": "={{ $json.message }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "f3594a21-f510-481c-8843-08ed05a47a51",
+      "name": "Show Human Review",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 1,
+      "position": [
+        1480,
+        100
+      ],
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "={{ $json.title }}",
+        "completionMessage": "={{ $json.message }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "6cd4589d-70e5-433f-aad9-81f0acb15ff2",
+      "name": "Extraction Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        200
+      ],
+      "parameters": {
+        "jsCode": "// LLM 讀信失敗（例如輸出格式不符 schema）→ 不報價，直接轉人工\nreturn [{ json: { 路線: 'human_review', 原因: ['AI 讀信失敗（輸出格式不符），需人工確認'], 報價: [], 總計: null, 目的地: null, 其他問題: null } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Inquiry Form": {
+      "main": [
+        [
+          {
+            "node": "Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Quote",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extraction Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quote": {
+      "main": [
+        [
+          {
+            "node": "Format Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Reply": {
+      "main": [
+        [
+          {
+            "node": "Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route": {
+      "main": [
+        [
+          {
+            "node": "Show Quote",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Show Human Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraction Failed": {
+      "main": [
+        [
+          {
+            "node": "Format Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

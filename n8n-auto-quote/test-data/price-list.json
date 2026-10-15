@@ -1,0 +1,372 @@
+{
+  "currency": "USD",
+  "tiers": [
+    {
+      "min_total": 1,
+      "max_total": 20,
+      "discount": 0
+    },
+    {
+      "min_total": 21,
+      "max_total": 50,
+      "discount": 0.15
+    },
+    {
+      "min_total": 51,
+      "max_total": 100,
+      "discount": 0.25
+    }
+  ],
+  "tier_rule": "Discount is based on TOTAL units in the order (any mix of varieties & sizes). Over 100 units is not defined -> human review.",
+  "items": [
+    {
+      "variety": "Bacteria",
+      "size": "S",
+      "type": "TC / SP",
+      "price": 24.0
+    },
+    {
+      "variety": "Bacteria",
+      "size": "M",
+      "type": "TC / SP",
+      "price": 30.0
+    },
+    {
+      "variety": "Bacteria",
+      "size": "L",
+      "type": "TC / SP",
+      "price": 60.0
+    },
+    {
+      "variety": "Nano",
+      "size": "S",
+      "type": "TC / SP",
+      "price": 30.0
+    },
+    {
+      "variety": "Nano",
+      "size": "M",
+      "type": "TC / SP",
+      "price": 42.0
+    },
+    {
+      "variety": "Nano",
+      "size": "L",
+      "type": "TC / SP",
+      "price": 66.0
+    },
+    {
+      "variety": "Jenny #2",
+      "size": "S",
+      "type": "TC / SP",
+      "price": 30.0
+    },
+    {
+      "variety": "Jenny #2",
+      "size": "M",
+      "type": "TC / SP",
+      "price": 42.0
+    },
+    {
+      "variety": "Jenny #2",
+      "size": "L",
+      "type": "TC / SP",
+      "price": 66.0
+    },
+    {
+      "variety": "OMG",
+      "size": "S",
+      "type": "TC / SP",
+      "price": 30.0
+    },
+    {
+      "variety": "OMG",
+      "size": "M",
+      "type": "TC / SP",
+      "price": 42.0
+    },
+    {
+      "variety": "OMG",
+      "size": "L",
+      "type": "TC / SP",
+      "price": 66.0
+    },
+    {
+      "variety": "Jade Girl",
+      "size": "S",
+      "type": "TC / SP",
+      "price": 24.0
+    },
+    {
+      "variety": "Jade Girl",
+      "size": "M",
+      "type": "TC / SP",
+      "price": 30.0
+    },
+    {
+      "variety": "Jade Girl",
+      "size": "L",
+      "type": "TC / SP",
+      "price": 60.0
+    },
+    {
+      "variety": "Spur",
+      "size": "S",
+      "type": "TC",
+      "price": 48.0
+    },
+    {
+      "variety": "Spur",
+      "size": "L",
+      "type": "TC",
+      "price": 72.0
+    },
+    {
+      "variety": "Celso Tatsuta",
+      "size": "M",
+      "type": "TC",
+      "price": 30.0
+    },
+    {
+      "variety": "Pedro Tatsuta",
+      "size": "M",
+      "type": "TC",
+      "price": 30.0
+    },
+    {
+      "variety": "Ginka",
+      "size": "M",
+      "type": "TC",
+      "price": 30.0
+    },
+    {
+      "variety": "Stella Aetemi",
+      "size": "M",
+      "type": "SP",
+      "price": 36.0
+    },
+    {
+      "variety": "NorthMonkey",
+      "size": "M",
+      "type": "TC",
+      "price": 30.0
+    },
+    {
+      "variety": "Pearl Queen",
+      "size": "M",
+      "type": "TC / SP",
+      "price": 36.0
+    },
+    {
+      "variety": "Bambi",
+      "size": "M",
+      "type": "SP",
+      "price": 36.0
+    },
+    {
+      "variety": "Hakunamatata",
+      "size": "M",
+      "type": "TC / SP",
+      "price": 30.0
+    },
+    {
+      "variety": "Rydeen",
+      "size": "M",
+      "type": "SP",
+      "price": 36.0
+    },
+    {
+      "variety": "Foong Si Qi",
+      "size": "M",
+      "type": "TC / SP",
+      "price": 30.0
+    },
+    {
+      "variety": "SS Foong",
+      "size": "M",
+      "type": "SP",
+      "price": 30.0
+    },
+    {
+      "variety": "Ridleyi Dwarf Silver",
+      "size": "M",
+      "type": "TC",
+      "price": 30.0
+    },
+    {
+      "variety": "Ridleyi Dwarf Silver",
+      "size": "L",
+      "type": "TC",
+      "price": 60.0
+    },
+    {
+      "variety": "Ridleyi MonkeyKing",
+      "size": "M",
+      "type": "TC",
+      "price": 30.0
+    },
+    {
+      "variety": "Ridleyi MonkeyKing",
+      "size": "L",
+      "type": "TC",
+      "price": 60.0
+    },
+    {
+      "variety": "Ridleyi Nano",
+      "size": "M",
+      "type": "TC",
+      "price": 30.0
+    },
+    {
+      "variety": "Ridleyi Nano",
+      "size": "L",
+      "type": "TC",
+      "price": 60.0
+    },
+    {
+      "variety": "Ridleyi Parkarang",
+      "size": "M",
+      "type": "TC",
+      "price": 30.0
+    },
+    {
+      "variety": "Ridleyi Parkarang",
+      "size": "L",
+      "type": "TC",
+      "price": 60.0
+    },
+    {
+      "variety": "Ridleyi Saman",
+      "size": "M",
+      "type": "TC",
+      "price": 30.0
+    },
+    {
+      "variety": "Ridleyi Saman",
+      "size": "L",
+      "type": "TC",
+      "price": 48.0
+    },
+    {
+      "variety": "Elsa",
+      "size": "M",
+      "type": "TC",
+      "price": 30.0
+    },
+    {
+      "variety": "Konayuki",
+      "size": "M",
+      "type": "TC",
+      "price": 30.0
+    },
+    {
+      "variety": "Wings of Angle",
+      "size": "M",
+      "type": "TC",
+      "price": 48.0
+    },
+    {
+      "variety": "White Gizmo",
+      "size": "M",
+      "type": "TC",
+      "price": 30.0
+    },
+    {
+      "variety": "Banna A",
+      "size": "M",
+      "type": "TC",
+      "price": 30.0
+    },
+    {
+      "variety": "Cupid's Wings",
+      "size": "M",
+      "type": "TC / SP",
+      "price": 36.0
+    },
+    {
+      "variety": "White Hawk",
+      "size": "M",
+      "type": "SP",
+      "price": 30.0
+    },
+    {
+      "variety": "Madagascariense",
+      "size": "M",
+      "type": "TC",
+      "price": 30.0
+    },
+    {
+      "variety": "Veitchii Auburn River (no face)",
+      "size": "S",
+      "type": "SP",
+      "price": 24.0
+    },
+    {
+      "variety": "Veitchii Auburn River (perfect)",
+      "size": "S",
+      "type": "SP",
+      "price": 108.0
+    },
+    {
+      "variety": "Veitchii Auburn River Chief",
+      "size": "S",
+      "type": "SP",
+      "price": 108.0
+    },
+    {
+      "variety": "Veitchii Auburn River Flame",
+      "size": "S",
+      "type": "SP",
+      "price": 108.0
+    },
+    {
+      "variety": "Yellow Moon Dwarf x Totoro",
+      "size": "S",
+      "type": "SP",
+      "price": 48.0
+    },
+    {
+      "variety": "Yellow Moon Dwarf x Totoro",
+      "size": "M",
+      "type": "SP",
+      "price": 120.0
+    },
+    {
+      "variety": "Yellow Moon Dwarf x Totoro",
+      "size": "L",
+      "type": "SP",
+      "price": 264.0
+    },
+    {
+      "variety": "Yellow Moon Dwarf",
+      "size": "M",
+      "type": "TC",
+      "price": 36.0
+    },
+    {
+      "variety": "Wandae Var.Dwarf&Curling",
+      "size": "M",
+      "type": "TC",
+      "price": 30.0
+    },
+    {
+      "variety": "Griffin",
+      "size": "M",
+      "type": "SP",
+      "price": 30.0
+    },
+    {
+      "variety": "Yellow moon",
+      "size": "M",
+      "type": "SP",
+      "price": 36.0
+    },
+    {
+      "variety": "Bogor suddan",
+      "size": "M",
+      "type": "TC",
+      "price": 30.0
+    }
+  ],
+  "note": "Demo prices: real FernzLand price list structure (varieties, sizes, volume tiers) with adjusted prices."
+}
