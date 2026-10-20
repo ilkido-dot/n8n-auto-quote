@@ -2,7 +2,8 @@
 // 檢查不過就退回、改用固定範本：寄出去的金額一定是程式算的，AI 也不會自己答應退款。
 const 金額樣式 = /(US\$|NT\$|\$|€|USD|EUR|美金|美元|台幣|歐元)\s?\d|\d[\d,]*(\.\d+)?\s?(USD|EUR|€|美金|美元|元|歐元)/i;
 const 折扣樣式 = /\d+\s?%|\d+\s?折/;
-const 退款樣式 = /refund|reimburs|compensat|退款|退費|賠償|補償/i;
+// 退款、補償、免運費的說法（英、中、德、荷、法）。系統會寫這幾種語言的回信，所以每種都要擋
+const 退款樣式 = /refund|reimburs|compensat|free shipping|waive|cover (the |your )?(shipping|freight)|退款|退費|退運費|運費退|免運|負擔運費|賠償|補償|erstatt|entschädig|gutschrift|kostenlose[nr]? versand|terugbetal|vergoed|gratis verzending|rembours|dédommag|livraison gratuite/i;
 
 function 報價表(d) {
   const 行 = d.報價.map(x =>
@@ -49,7 +50,8 @@ return 草稿們.map((item, i) => {
   // 檢查的是 AI 自己寫的文字（報價表還沒放進去之前）
   if (金額樣式.test(草稿)) 問題.push('AI 自己寫了金額');
   if (折扣樣式.test(草稿)) 問題.push('AI 自己寫了折扣');
-  if (d.路線 !== 'auto_quote' && 退款樣式.test(草稿)) 問題.push('AI 提到退款或補償');
+  // 三條路線都檢查：報價信也可能被來信裡的指令騙去答應退款
+  if (退款樣式.test(草稿)) 問題.push('AI 提到退款、補償或免運費');
 
   const 通過 = 問題.length === 0;
   const 最終回信 = 通過

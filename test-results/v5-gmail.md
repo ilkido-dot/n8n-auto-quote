@@ -49,11 +49,21 @@ The skip is done by code reading mail headers, not by the LLM.
 **All 4 test emails had no subject**, so the first drafts were titled `Re: `.
 Fix: when the subject is empty, the draft is titled `Re: Your inquiry to FernzLand`.
 
+## 4. First two days after publishing (Oct 15–16)
+
+From the n8n execution log:
+
+- 3 newsletters arrived (2 from a news site, 1 from Slack). `Prepare` skipped all 3: 0 LLM calls, 0 drafts.
+- The 4 test emails were each processed once (executions 104 and 105). Later polls did not pick them up again.
+- The 18:00 daily summary ran on Oct 16. There were no customer emails that day, and the summary said so.
+
 ## Known limits
 
 - Drafts are never sent automatically. A person reviews and presses Send.
 - The reason a mail went to human review is stored in `inquiry_log`, not shown inside Gmail.
 - Label IDs (`Label_1`–`Label_3`) belong to one mailbox. Another mailbox needs its own labels.
-- At most 10 emails per poll (n8n Gmail trigger setting).
+- At most 10 emails per poll (n8n Gmail trigger setting); the rest wait for the next poll. Tested in [v6](v6.md#5-gmail-trigger-can-it-miss-mail).
+- An email that someone opens before the next poll is never handled, because the trigger only fetches unread mail. Found in [v6](v6.md#5-gmail-trigger-can-it-miss-mail).
 - Attachments (e.g. photos of damaged plants) are not read.
 - 4 live emails is a smoke test, not an accuracy measurement.
+- The workflow does not check whether a message was already handled. It relies on the Gmail trigger only returning new mail. If the same message runs again (for example, re-running an old execution in n8n), it gets a second draft. Plan: see [v6](v6.md#known-limits).
