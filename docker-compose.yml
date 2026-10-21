@@ -1,0 +1,19 @@
+# 本機自架 n8n。啟動：docker compose up -d，然後開 http://localhost:5678
+# 只綁 127.0.0.1，同一個網路裡的其他電腦連不到。
+# 資料存在 n8n_data 這個 volume，容器刪掉重建也還在；不要執行 docker compose down -v。
+services:
+  n8n:
+    image: n8nio/n8n
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=Asia/Taipei
+      - TZ=Asia/Taipei
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  n8n_data:
