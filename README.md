@@ -10,6 +10,8 @@
 - 4 封實際寄進信箱的信：4 / 4 分類正確，寄出後約 40 秒草稿出現
 - v1 → v2：只改程式、不改 prompt，4/10 → 10/10
 - 從 n8n Cloud 搬到本機自架後重跑：32 / 32，另寄 1 封真的詢價信，草稿和標籤都正確
+- 改用 Sonnet 5.5 對照：32 封一樣全對；回信盲測 9 封，我選了 5 封 Sonnet、4 封 Haiku；Sonnet 每封貴約 12.7 倍，所以繼續用 Haiku
+- 出錯時推播到 LINE，用一個故意出錯的 workflow 測過
 
 ## 這是什麼
 
@@ -27,8 +29,8 @@
 |---|---|
 | 提供業務情境：客戶來信的樣子、價目表、數量折扣規則 | 依這些情境設計 32 封模擬信和每封的預期答案 |
 | 定規則：價目表不能公開、Gmail 用專用信箱而不用個人信箱、開新的 repo | 在 n8n 裡建節點，寫 JavaScript 和 prompt |
-| 選要做的功能：報關稅務分類是我要求加的，Gmail 是我決定先接上再打包 | 寫 Grade 評分節點，每次修改後重跑全部測試信 |
-| 需要本人做的步驟：Google 授權（自架後自己建 OAuth 用戶端）、貼上 API 金鑰、寄實測信、push 到 GitHub | 打包前清理公開資料：憑證、資料表 ID、真實價格 |
+| 選要做的功能：報關稅務分類是我要求加的，Gmail 是我決定先接上再打包，出錯通知用 LINE 是我選的 | 寫 Grade 評分節點，每次修改後重跑全部測試信 |
+| 需要本人做的步驟：Google 授權（自架後自己建 OAuth 用戶端）、建 LINE 官方帳號、貼上 API 金鑰和 token、寄實測信、push 到 GitHub | 打包前清理公開資料：憑證、資料表 ID、真實價格、LINE user ID |
 
 我怎麼驗收：
 
@@ -36,6 +38,7 @@
 - 寄真的信進信箱，打開 Gmail 看草稿的內容、收件人和標籤。
 - 我會反問 AI 的設計理由。報關稅務一律轉人工，原本寫的理由是「模型訓練時知道的規則可能已經過期」。我問：稅務資料上網查就能求證，為什麼不行？這個理由站不住，後來改成現在的三個理由（見「報關、稅務問題一律不回答」）。
 - 另外用一個只負責審查、不寫 workflow 程式的 Claude 對話讀 repo 的程式和 README。它找到的程式問題，修完要用測試證明：v6 它發現報價信沒有檢查退款承諾，修改前後各丟 3 封假的退款草稿進去，舊版全部放行，新版全部退回。
+- 比較模型時自己盲評回信：兩個模型的回信並排，看不到是哪個模型寫的，評完才揭曉（見「成本和延遲」）。
 
 ## 一封信進來會發生什麼
 
@@ -71,6 +74,7 @@
 | v4 | 報關稅務類、德文和荷蘭文、提示注入、需求訊號 | 31 | 31 / 31，跑 2 輪 |
 | v5 | 接上 Gmail：收信、建草稿、加標籤 | 31，加 4 封實測 | 31 / 31 跑 3 輪，實測 4 / 4 |
 | v6 | 退款檢查擴到三條路線（含德文、荷蘭文、法文），加 T32 | 32 | 32 / 32，跑 2 輪 |
+| v7 | 搬到本機自架，出錯通知推播到 LINE | 32 | 32 / 32 |
 
 v1 和 v2 用同一個 prompt、同一個模型、同一份價目表，只改了 LLM 後面的 Code 節點。v1 的 6 個失敗都出在那段程式：`null` 被算成 $0，查不到的品項從總額裡被拿掉，總計卻看不出來。
 
@@ -116,14 +120,18 @@ Publish 之後的頭兩天，信箱收到 3 封電子報，都在 `Prepare` 被�
 
 這些數字是在 n8n Cloud 試用期間量的。那時 Claude 呼叫經過 n8n 的 AI gateway，我沒有自己的 Anthropic 帳單可以對照，所以費用是實測 token 數乘上官方價格算出來的。搬到本機後改用我自己的金鑰，之後可以拿帳單核對。
 
-為了回答「為什麼用 Haiku」，我請 Claude 把讀信和寫回信暫時換成 Claude Sonnet 5.5（每百萬 input US$2、output US$10），跑一輪 32 封，再換回來：
+為了回答「為什麼用 Haiku」，我請 Claude 把讀信和寫回信換成 Claude Sonnet 5.5（每百萬 input US$2、output US$10）跑 32 封。n8n Cloud 上跑過一輪；搬到本機後，複製一份 workflow 換模型，和同一天的 Haiku 各跑一輪：
 
 | 模型 | 結果 | 每封 input / output tokens | 每封費用 | 一天 1,000 封 |
 |---|---|---|---|---|
-| Haiku 5.5（2 輪平均） | 32 / 32，兩輪 | 1,940 / 781 | 約 US$0.00058 | 約 US$0.58 |
-| Sonnet 5.5（1 輪） | 32 / 32 | 1,941 / 345 | 約 US$0.0073 | 約 US$7.3 |
+| Haiku 5.5，Cloud（2 輪平均） | 32 / 32，兩輪 | 1,940 / 781 | 約 US$0.00058 | 約 US$0.58 |
+| Sonnet 5.5，Cloud | 32 / 32 | 1,941 / 345 | 約 US$0.0073 | 約 US$7.3 |
+| Haiku 5.5，本機 | 32 / 32 | 1,940 / 790 | 約 US$0.00059 | 約 US$0.59 |
+| Sonnet 5.5，本機 | 32 / 32 | 1,940 / 362 | 約 US$0.0075 | 約 US$7.5 |
 
-Sonnet 的 output tokens 不到 Haiku 的一半，單價卻是 20 倍，每封貴了約 12.5 倍。這組測試分不出兩個模型的差別，所以留在 Haiku。回信寫得好不好不在 `Grade` 的檢查範圍裡（見限制），這一點沒有比到。
+Sonnet 的 output tokens 不到 Haiku 的一半，單價卻是 20 倍，每封貴了約 12.5 倍，本機重跑是 12.7 倍。兩個模型的路線和金額都全對，`Grade` 分不出差別。
+
+回信寫得好不好不在 `Grade` 的檢查範圍裡，所以本機這輪另外做了盲測：Claude 挑 10 封不同類型的信，把兩個模型的回信並排，左右隨機，我評完才揭曉哪封是哪個模型。德文那封我看不懂，跳過。9 封裡我選了 5 封 Sonnet、4 封 Haiku，只差一封，看不出哪個比較好，所以繼續用 Haiku。比對回信時還發現兩個模型都會寫出系統沒做的事，見「發現的問題」。完整紀錄在 [`test-results/v7.md`](test-results/v7.md)。
 
 延遲：
 
@@ -136,7 +144,21 @@ Sonnet 的 output tokens 不到 Haiku 的一半，單價卻是 20 倍，每封�
 
 10/21 起，workflow 從 n8n Cloud 試用帳號搬到我電腦上的 Docker（n8n 2.44.4，設定在 [`docker-compose.yml`](docker-compose.yml)）。原因有三個：Cloud 試用期到了；改用我自己的 Anthropic 金鑰，費用自己掌握；n8n 和 MySQL 在同一台電腦上，之後才能把紀錄即時寫進 MySQL。
 
-自架的代價：電腦和 Docker 要開著才會收信；Google 授權在測試模式下每 7 天過期，要重新登入一次。這是給展示用的環境，正式上線要放到一台不關機的主機上。
+自架的代價：電腦和 Docker 要開著才會收信；Google 授權在測試模式下每 7 天過期，要重新登入一次。排程也會延後：10/22 18:00 的每日摘要到 10/23 00:02 才跑，每天 09:00 的 Gmail 授權檢查（見下一節）兩天分別晚了約 6 小時和將近 10 小時。最可能的原因是電腦睡眠時 Docker 也跟著暫停，還沒確認。這是給展示用的環境，正式上線要放到一台不關機的主機上。
+
+## 出錯時通知到 LINE
+
+workflow 出錯時，`Error Alert → LINE` 把 workflow 名稱、出錯的節點、錯誤訊息和執行紀錄的連結推播到我的 LINE。LINE Notify 在 2025 年 3 月停止服務了，所以用 LINE 官方帳號的 Messaging API。
+
+Gmail 授權過期時，收信的觸發節點只寫一行 log，不會產生失敗的執行紀錄，錯誤通知也就不會發。這是 Claude 查 n8n 原始碼時發現的。所以另外做了 `Gmail Health Check`：每天 09:00 讀一個 Gmail 標籤，授權過期時這一步會失敗，通知就會發出去。
+
+測試：手動按 Execute 跑出的錯誤不會觸發通知，所以 Claude 建了一個暫時的 workflow，Publish 之後每分鐘故意出錯一次。10/21 17:49 LINE 接受了推播，回傳訊息 ID。
+
+還沒涵蓋到的：
+
+- 讀信和寫回信的 AI 節點出錯時會重試一次，再失敗就轉人工，流程繼續跑。所以 Anthropic 餘額用完或金鑰失效時，每封信都會轉人工，但不會發通知。
+- 沒有限流。LINE 免費方案每月 200 則推播，同一個錯誤如果每分鐘發生一次，三個多小時就用完。
+- 電腦關機或睡眠時，通知也跟著停。
 
 ## 設計取捨
 
@@ -218,13 +240,24 @@ v6，另一個對話審查程式時發現。
 
 怎麼證明修好了：Claude 新增 T32，一封藏了這種指令的報價信。但三輪測試（修改前一輪、修改後兩輪）裡，AI 每次都沒照指令寫，所以 T32 證明不了漏洞存在。Claude 就直接把 3 封確定含有退款承諾的假草稿（2 封英文、1 封德文）丟進檢查：舊版 3 封都放行，新版 3 封都退回。T32 留在測試集裡，之後每次修改都會重跑。
 
+### 回信會寫出系統沒做的事
+
+v7，審查用的對話比對 Sonnet 和 Haiku 的回信時發現，還沒修。
+
+T29 是貨卡在檢疫站的報關信，系統轉人工，沒有標成優先，Haiku 的回信卻寫「Your case has been flagged for priority review」。T05 的客人問運費，報價表裡沒有運費，兩個模型的回信都說運費在報價裡。
+
+`Assemble & Check` 只找金額、折扣、退款和免運費的說法，這種句子抓不到。盲測時我選了 T29 那封 Haiku 的回信，當時沒注意到這句，看草稿的人一樣可能漏掉。
+
+計畫：`Draft Reply` 的 prompt 加一條規定：報價表裡沒有的東西不提；問運費就說會由同事回覆；不是 `escalate` 的信，不能說已經優先處理或已經標記。`Assemble & Check` 和 `Grade` 加上對應的檢查，再重跑 32 封。
+
 ## 限制
 
 - 32 封模擬信是 Claude 依我經營時客戶來信的樣子設計的，4 封 Gmail 實測是我寄的，還沒拿真實客戶的來信跑過。
-- 回信品質沒有自動評分。`Grade` 只檢查類型、語言、路線、金額，以及回信裡有沒有金額和退款字眼；回信的語氣、德文寫得對不對沒有評分，只人工看過 4 封實測。
+- 回信品質沒有自動評分。`Grade` 只檢查類型、語言、路線、金額，以及回信裡有沒有金額和退款字眼。語氣和內容只靠人看：Gmail 實測的回信，加上一次 9 封的 Sonnet、Haiku 盲測；德文回信沒有人評過。回信寫出系統沒做的事，目前也抓不到（見「發現的問題」）。
 - 退款檢查是比對關鍵字，清單上沒有的說法抓不到，例如「we'll pay for the shipping」。所以最後一道防線還是人看過草稿再寄。
 - 信在系統處理前就被點開、變成已讀，就永遠不會被處理，也不會報錯。原因是收信觸發只抓未讀、而且比上次處理過更新的信，Claude 用測試信重現過。搬到本機後更容易發生：電腦關機時寄來的信，如果開機前先用手機點開，開機後也不會被處理。改法：讀取狀態改成「全部」，防重複交給下一條的 message id 表。這條排在最先修。
 - workflow 自己不檢查一封信處理過沒有，防重複只靠 Gmail 觸發節點只送新信。上線到現在沒有發生重複，包括一分鐘 12 封的實測；但同一封信如果再跑一次（例如在 n8n 重跑舊的執行紀錄），會多建一封草稿。計畫：先把 Gmail 的 message id 寫進資料表並設成不能重複，寫入成功才建草稿；建草稿失敗就把那筆標成失敗，讓它能重試。n8n 的資料表不支援這種唯一限制（只有表名和欄位名稱不能重複），所以要搬到 MySQL 後用 UNIQUE 鍵。
+- 每日摘要用執行當下的日期查紀錄。排程延到隔天才跑，就會摘要錯的那一天：10/22 的摘要在 10/23 00:02 才跑，摘要的是 10/23（0 封），10/22 的信沒有摘要。計畫改成摘要排程原本該跑的那一天，或上次摘要之後的每一天。
 - 價目表寫在 `nodes/decide.js` 的程式裡，調價要改程式。計畫改成從試算表或資料庫讀，業務自己改表格就好。
 - 報價表和備用範本只有英文、中文，德文回信裡的報價表是英文。
 - 一封信同時詢價又問關稅（T28），整封轉人工，不會先產生報價草稿。
@@ -239,12 +272,15 @@ v6，另一個對話審查程式時發現。
 | 檔案 | 內容 |
 |---|---|
 | `workflow/inquiry-assistant.json` | 目前的 n8n workflow，可以直接匯入 |
+| `workflow/error-alert-line.json` | 出錯通知：Error Trigger → 整理訊息 → 推播到 LINE |
+| `workflow/gmail-health-check.json` | 每天 09:00 讀一個 Gmail 標籤，授權過期時觸發出錯通知 |
 | `nodes/` | workflow 裡各節點的程式和 prompt，拆出來方便在 GitHub 上讀，內容和 workflow 相同 |
 | `nodes/decide.js` | 路線和報價的規則，示意價目表也在這裡 |
 | `nodes/assemble-check.js` | 回信的安全檢查和備用範本 |
+| `nodes/error-alert-format.js` | 出錯通知的訊息內容 |
 | `test-data/test-emails.json` | 32 封模擬信和每封的預期答案 |
 | `test-data/price-list.json` | 示意價目表（58 列，USD）和折扣規則 |
-| `test-results/` | v1–v2、v4、v5（Gmail）、v6 的測試紀錄 |
+| `test-results/` | v1–v2、v4、v5（Gmail）、v6、v7（本機自架）的測試紀錄 |
 | `sql/inquiry_log_schema.sql` | 來信紀錄匯出到 MySQL 的表結構 |
 | `docker-compose.yml` | 本機自架 n8n 的 Docker 設定，只開放 127.0.0.1:5678 |
 | `workflow/v1/`、`nodes/v1/`、`test-data/v1-test-emails.json` | v1、v2 時期只做詢價的版本，留作對照 |
@@ -259,9 +295,14 @@ v6，另一個對話審查程式時發現。
 2. 建立憑證：Anthropic（3 個 Claude 節點）、Gmail OAuth2（3 個 Gmail 節點）。Gmail 的授權範圍是整個信箱，建議用一個專門收詢價信的信箱。自架要自己在 Google Cloud 建 OAuth 用戶端；測試模式要把收信的信箱加進測試使用者，授權的過程全程用 localhost 操作，不要用 127.0.0.1。
 3. 建兩個 Data Table：`inquiry_log`（欄位同 `sql/inquiry_log_schema.sql`，但 `day` 用文字型別，跟 workflow 裡的設定一致）和 `daily_summary`，在 `Save to Log`、`Get Today's Log`、`Save Summary` 選擇它們。
 4. 在 Gmail 建 3 個標籤（AI-報價待寄、AI-待人工、AI-客訴優先），把 `Label by Route` 裡的標籤 ID 換成你的。
-5. 執行 Run Tests，打開 `Grade` 節點，第一列應該是 `32 / 32 PASS`。
+5. 在 Execute 按鈕的下拉選單選 From Run Tests，跑完打開 `Grade` 節點，第一列應該是 `32 / 32 PASS`。
 6. 按 Publish，Gmail 每分鐘檢查一次，18:00 產生每日摘要。
+7. 出錯通知（可以不裝）：
+   - 建一個 LINE 官方帳號並啟用 Messaging API，用手機把官方帳號加為好友，不然收不到。
+   - 在 LINE Developers Console 的 Messaging API 分頁發一組 Channel access token；Basic settings 分頁的 Your user ID 是收通知的人。
+   - 匯入 `workflow/error-alert-line.json` 和 `workflow/gmail-health-check.json`。在 n8n 建 Bearer Auth 憑證貼上 token（`Bearer ` 前綴 n8n 會自己加），把 `Push to LINE` 裡的 `REPLACE_WITH_YOUR_LINE_USER_ID` 換成你的 user ID，`Read One Label` 選 Gmail 憑證。
+   - 主 workflow 和 `Gmail Health Check` 的 Settings 裡，Error workflow 都選 `Error Alert → LINE`，再把 `Gmail Health Check` Publish。
 
-workflow 裡的憑證和資料表 ID 都是佔位字串（`REPLACE_WITH_...`）。n8n 的金鑰存在憑證管理裡，不會跟著匯出，repo 裡沒有任何 API 金鑰。
+workflow 裡的憑證、資料表 ID 和 LINE user ID 都是佔位字串（`REPLACE_WITH_...`）。n8n 的金鑰存在憑證管理裡，不會跟著匯出，repo 裡沒有任何 API 金鑰或 token。
 
 </details>
