@@ -1,69 +1,69 @@
-# Test run v5 — Gmail (inbox → reply draft in the thread → label)
+[English](./v5-gmail.en.md)
 
-Date: 2026-10-15 · Model: Claude Haiku 5.5 (n8n) · Mailbox: a dedicated Gmail account, not my personal one
+# 測試紀錄 v5：接上 Gmail（收件匣 → 在原信的對話串建回信草稿 → 加標籤）
 
-## 1. Regression: the 31 test emails still pass
+日期：2026-10-15 · 模型：Claude Haiku 5.5（n8n）· 信箱：專用的 Gmail 帳號，不是我的個人信箱
 
-The Gmail branch changed three shared nodes (`Prepare`, `Decide`, and `Is Test?` → `By Source` switch),
-so the full test set was re-run after each change.
+## 1. 回歸測試：31 封測試信還是全過
 
-| Run | Workflow change | Result | Drafts rejected by the safety check |
+接 Gmail 改到三個共用的節點（`Prepare`、`Decide`，以及 `Is Test?` 改成 `By Source` 分流），所以每次修改後都重跑整套測試信。
+
+| 輪次 | workflow 的修改 | 結果 | 安全檢查退回的草稿 |
 |---|---|---|---|
-| v4 run 1 | customs/tax category + multilingual | 31 / 31 | 0 |
-| v4 run 2 | (same, second run) | 31 / 31 | 0 |
-| v5 run 1 | Gmail trigger, `By Source` switch, draft + label nodes | 31 / 31 | 0 |
-| v5 run 2 | skip newsletters / auto-replies, subject fallback | 31 / 31 | 0 |
-| v5 run 3 | test data cleanup (labels, demo unit prices) | 31 / 31 | 0 |
+| v4 第 1 輪 | 報關稅務類別、多語言 | 31 / 31 | 0 |
+| v4 第 2 輪 | （同上，第二輪） | 31 / 31 | 0 |
+| v5 第 1 輪 | Gmail 觸發、`By Source` 分流、建草稿和加標籤的節點 | 31 / 31 | 0 |
+| v5 第 2 輪 | 跳過電子報和自動回覆、主旨空白時的預設主旨 | 31 / 31 | 0 |
+| v5 第 3 輪 | 整理測試資料（標籤、示意單價） | 31 / 31 | 0 |
 
-A full run of 31 emails (62 LLM calls) takes 53–64 seconds.
+跑完 31 封（62 次 LLM 呼叫）要 53～64 秒。
 
-## 2. Live test: 4 real emails sent to the inbox
+## 2. 實測：4 封真的信寄進信箱
 
-Sent by hand from another Gmail account. The workflow was published, so the Gmail trigger polled every minute.
+從另一個 Gmail 帳號手動寄出。workflow 已經 Publish，Gmail 觸發每分鐘檢查一次。
 
-| Email | Classified as | Route | Draft (in the same thread) | Label |
+| 來信 | 分類 | 路線 | 草稿（在同一個對話串） | 標籤 |
 |---|---|---|---|---|
-| English: 20 OMG M + 15 Nano M | 詢價 / en | auto_quote | quote table, **US$1,249.50** (35 units, 15% tier) | AI-報價待寄 |
-| German: 15 Nano mittel + 10 Bacteria klein | 詢價 / de | auto_quote | German text, **US$739.50** | AI-報價待寄 |
-| Shipment held at Miami plant inspection station | 報關稅務 / en | human_review | "a colleague will reply" — no customs answer | AI-待人工 |
-| 3 of 20 Jade Girl arrived rotten | 客訴退貨 / en | escalate | apology + "a colleague will reply" — no refund promised | AI-客訴優先 |
+| 英文：OMG M ×20、Nano M ×15 | 詢價 / en | auto_quote | 報價表，US$1,249.50（35 棵，15% 級距） | AI-報價待寄 |
+| 德文：Nano mittel ×15、Bacteria klein ×10 | 詢價 / de | auto_quote | 德文內文，US$739.50 | AI-報價待寄 |
+| 貨卡在 Miami 植物檢疫站 | 報關稅務 / en | human_review | 「a colleague will reply」，沒有回答清關問題 | AI-待人工 |
+| 20 棵 Jade Girl 有 3 棵到貨時爛了 | 客訴退貨 / en | escalate | 致歉加上「a colleague will reply」，沒有承諾退款 | AI-客訴優先 |
 
-**4 / 4 correct.** All drafts passed the safety check (no AI-written amounts, discounts or refund promises).
+4 / 4 正確。所有草稿都通過安全檢查（沒有 AI 自己寫的金額、折扣或退款承諾）。
 
-Timing (from n8n execution logs):
-- 1 email: execution took 8.5 s; 3 emails in one poll: 11.1 s
-- From "sent" to "draft visible": about 40 s for the first email (most of it is waiting for the next 1-minute poll)
+時間（n8n 執行紀錄）：
 
-Expected totals were checked against the demo price list: OMG M and Nano M are $42.00, ×0.85 = $35.70;
-20 × 35.70 + 15 × 35.70 = $1,249.50.
+- 1 封信：執行 8.5 秒；一次檢查拿到 3 封：11.1 秒
+- 從寄出到看得到草稿：第一封約 40 秒（大部分在等下一次每分鐘的檢查）
 
-## 3. What the live test found (and fixed)
+預期總額用示意價目表驗算過：OMG M 和 Nano M 都是 $42.00，×0.85 = $35.70；
+20 × 35.70 + 15 × 35.70 = $1,249.50。
 
-**The inbox was not empty.** The mailbox already receives newsletters in the Primary tab.
-Each one would have cost 2 LLM calls and produced a reply draft to a newsletter.
-Fix in `Prepare`: skip messages that have a `List-Unsubscribe` / `List-Id` header, `Precedence: bulk/list`,
-or `Auto-Submitted` other than `no`. This also stops reply loops with a customer's out-of-office auto-reply.
-The Gmail search filter excludes Promotions and Social as a first pass.
-The skip is done by code reading mail headers, not by the LLM.
+## 3. 實測發現的問題（已修）
 
-**All 4 test emails had no subject**, so the first drafts were titled `Re: `.
-Fix: when the subject is empty, the draft is titled `Re: Your inquiry to FernzLand`.
+收件匣不是空的。這個信箱的主要分頁本來就會收到電子報，每封都會多花 2 次 LLM 呼叫，還會對電子報建一封回信草稿。
+`Prepare` 的修法：有 `List-Unsubscribe` / `List-Id` 標頭、`Precedence: bulk/list`，或 `Auto-Submitted` 不是 `no` 的信直接跳過。這也能避免和客戶的「不在辦公室」自動回覆來回互寄。
+Gmail 的搜尋條件先排除了「促銷內容」和「社交網路」分頁。
+要不要跳過，是程式讀信件標頭決定的，不是 LLM。
 
-## 4. First two days after publishing (Oct 15–16)
+4 封測試信都沒有主旨，所以第一批草稿的標題是 `Re: `。
+修法：主旨空白時，草稿標題用 `Re: Your inquiry to FernzLand`。
 
-From the n8n execution log:
+## 4. Publish 後的頭兩天（10/15–16）
 
-- 3 newsletters arrived (2 from a news site, 1 from Slack). `Prepare` skipped all 3: 0 LLM calls, 0 drafts.
-- The 4 test emails were each processed once (executions 104 and 105). Later polls did not pick them up again.
-- The 18:00 daily summary ran on Oct 16. There were no customer emails that day, and the summary said so.
+來自 n8n 的執行紀錄：
 
-## Known limits
+- 收到 3 封電子報（2 封來自新聞網站，1 封來自 Slack）。`Prepare` 3 封都跳過：0 次 LLM 呼叫，0 份草稿。
+- 4 封測試信各只處理一次（執行紀錄 104 和 105），之後的檢查沒有再抓到它們。
+- 10/16 18:00 的每日摘要照常產生。那天沒有客戶來信，摘要也這樣寫。
 
-- Drafts are never sent automatically. A person reviews and presses Send.
-- The reason a mail went to human review is stored in `inquiry_log`, not shown inside Gmail.
-- Label IDs (`Label_1`–`Label_3`) belong to one mailbox. Another mailbox needs its own labels.
-- At most 10 emails per poll (n8n Gmail trigger setting); the rest wait for the next poll. Tested in [v6](v6.md#5-gmail-trigger-can-it-miss-mail).
-- An email that someone opens before the next poll is never handled, because the trigger only fetches unread mail. Found in [v6](v6.md#5-gmail-trigger-can-it-miss-mail).
-- Attachments (e.g. photos of damaged plants) are not read.
-- 4 live emails is a smoke test, not an accuracy measurement.
-- The workflow does not check whether a message was already handled. It relies on the Gmail trigger only returning new mail. If the same message runs again (for example, re-running an old execution in n8n), it gets a second draft. Plan: see [v6](v6.md#known-limits).
+## 已知限制
+
+- 草稿不會自動寄出，由人看過再按寄出。
+- 轉人工的原因存在 `inquiry_log`，在 Gmail 裡看不到。
+- 標籤 ID（`Label_1`–`Label_3`）綁定一個信箱，換信箱要建自己的標籤。
+- 每次檢查最多拿 10 封（n8n Gmail 觸發節點的設定），其他的等下一次檢查。測試見 [v6](./v6.md) 第 5 節。
+- 下一次檢查前就被點開的信永遠不會被處理，因為觸發節點只抓未讀的信。發現經過見 [v6](./v6.md) 第 5 節。
+- 不讀附件（例如植物受損的照片）。
+- 4 封實測只是冒煙測試（確認主要功能能跑），不是準確率的量測。
+- workflow 不檢查一封信是不是處理過了，只靠 Gmail 觸發節點只送新信。同一封信如果再跑一次（例如在 n8n 重跑舊的執行紀錄），會多建一份草稿。計畫見 [v6](./v6.md) 的「已知限制」。

@@ -246,7 +246,7 @@ v7，審查用的對話比對 Sonnet 和 Haiku 的回信時發現，還沒修。
 
 T29 是貨卡在檢疫站的報關信，系統轉人工，沒有標成優先，Haiku 的回信卻寫「Your case has been flagged for priority review」。T05 的客人問運費，報價表裡沒有運費，兩個模型的回信都說運費在報價裡。
 
-`Assemble & Check` 只找金額、折扣、退款和免運費的說法，這種句子抓不到。盲測時我選了 T29 那封 Haiku 的回信，當時沒注意到這句，看草稿的人一樣可能漏掉。
+`Assemble & Check` 只找金額、折扣、退款和免運費的說法，這種句子抓不到。盲測時我選的正是 T29 那封 Haiku 的回信。這句話夾在一封正常的回信裡，看草稿的人很容易漏掉。
 
 計畫：`Draft Reply` 的 prompt 加一條規定：報價表裡沒有的東西不提；問運費就說會由同事回覆；不是 `escalate` 的信，不能說已經優先處理或已經標記。`Assemble & Check` 和 `Grade` 加上對應的檢查，再重跑 32 封。
 
@@ -280,7 +280,7 @@ T29 是貨卡在檢疫站的報關信，系統轉人工，沒有標成優先，H
 | `nodes/error-alert-format.js` | 出錯通知的訊息內容 |
 | `test-data/test-emails.json` | 32 封模擬信和每封的預期答案 |
 | `test-data/price-list.json` | 示意價目表（58 列，USD）和折扣規則 |
-| `test-results/` | v1–v2、v4、v5（Gmail）、v6、v7（本機自架）的測試紀錄 |
+| `test-results/` | v1–v2、v4、v5（Gmail）、v6、v7（本機自架）的測試紀錄；英文版是同名的 `.en.md` |
 | `sql/inquiry_log_schema.sql` | 來信紀錄匯出到 MySQL 的表結構 |
 | `docker-compose.yml` | 本機自架 n8n 的 Docker 設定，只開放 127.0.0.1:5678 |
 | `workflow/v1/`、`nodes/v1/`、`test-data/v1-test-emails.json` | v1、v2 時期只做詢價的版本，留作對照 |
