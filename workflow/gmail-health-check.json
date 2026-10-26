@@ -1,0 +1,80 @@
+{
+  "name": "Gmail Health Check",
+  "nodes": [
+    {
+      "id": "75f9620d-6649-4be4-8fc9-3453ed455908",
+      "name": "Every Day 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "80f17b91-cb9b-4985-8bf8-5fa795f7bba5",
+      "name": "Read One Label",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "resource": "label",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 1
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      },
+      "webhookId": "cf2779b4-cfb2-4dd9-a7a0-2406000789c5"
+    },
+    {
+      "id": "ac20f705-8dc9-4bb5-98c2-e2948e268310",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -200
+      ],
+      "parameters": {
+        "width": 520,
+        "height": 160,
+        "content": "## Gmail 健康檢查\n每天 09:00 讀一個 Gmail 標籤。Google 授權過期時，收信觸發器只會寫 log、不算失敗；這裡會直接失敗，觸發 Error Alert → LINE。"
+      }
+    }
+  ],
+  "connections": {
+    "Every Day 09:00": {
+      "main": [
+        [
+          {
+            "node": "Read One Label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Taipei"
+  },
+  "pinData": {}
+}

@@ -1,0 +1,84 @@
+{
+  "name": "Error Alert → LINE",
+  "nodes": [
+    {
+      "id": "e78c9a7b-9908-4ae8-a7c9-8abaa8aa64bb",
+      "name": "On Error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "4f48ea6e-acff-4630-933c-a9e224ad7b85",
+      "name": "Format Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// 把錯誤內容整理成一則 LINE 訊息。錯誤可能發生在一般節點（execution），也可能發生在觸發節點（trigger）\nconst e = $input.first().json;\nconst 名稱 = e.workflow?.name ?? '（不明）';\nconst 節點 = e.execution?.lastNodeExecuted ?? e.trigger?.error?.node?.name ?? '（不明）';\nconst 訊息 = e.execution?.error?.message ?? e.trigger?.error?.message ?? '（沒有錯誤訊息）';\nconst 時間 = $now.setZone('Asia/Taipei').toFormat('MM/dd HH:mm');\nconst 連結 = e.execution?.url ? '\\n' + e.execution.url : '';\nreturn [{ json: { text: `⚠️ n8n 出錯 ${時間}\\nWorkflow：${名稱}\\n節點：${節點}\\n訊息：${String(訊息).slice(0, 300)}${連結}` } }];"
+      }
+    },
+    {
+      "id": "6cf57fdf-4788-464a-9a61-1c8744c6abce",
+      "name": "Push to LINE",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/push",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: 'REPLACE_WITH_YOUR_LINE_USER_ID', messages: [{ type: 'text', text: $json.text }] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "LINE Channel Access Token"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "On Error": {
+      "main": [
+        [
+          {
+            "node": "Format Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Message": {
+      "main": [
+        [
+          {
+            "node": "Push to LINE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Taipei"
+  },
+  "pinData": {}
+}
